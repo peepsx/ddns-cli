@@ -1,102 +1,84 @@
 const fs = require('fs');
+const spawn = require('child_process').spawn;
 const checkDirectory = require('../helpers/checkDirectory');
 const fileCheck = require('../helpers/fileCheck');
 const backupFolderInit = require('../init/backupFolderInit');
+const createDirectory = require('../helpers/createDirectory');
 
 export default class NameDrive {
-  constructor (ndName) {
-    this.ndName = ndName
+  constructor (nd) {
+    this.nd = nd;
   }
 
   create() {
-    let ndLocations = "/root/DDrive/";
-    let ndLocation = `/root/DDrive/${this.ndName}`;
-    let checkForND = checkDirectory(ndLocation);
+    let ndLocations = process.env.DDRIVE_ROOT;
+    let ndLocation = `${ndLocations}${this.nd}`;
+    let checkForND = checkDirectory(ndLocations);
     if (checkForND === false) {
-      const spawn = require('child_process').spawn,
-        creatend = spawn('ddrive', ['create', ndLocation]),
-        start = spawn('ddrive', ['start']),
-        status = spawn('ddrive', ['status']);
-
-      // Create NameDrive
-      creatend.stdout.on('data', () => {
-        console.log(`NameDrive created for ${this.ndName}.`);
+      creatend = spawn('ddrive', ['create', ndLocation]);
+      creatend.stdout.on('data', data => {
+        console.log(`NameDrive created for ${this.nd}.`);
       });
-      creatend.stderr.on('data', () => {
-        console.error('During creation of the NameDrive, the following error was received from dDrive Daemon: ' + data);
-      });      
-    }  else {
-      console.error(`NameDrive named ${this.ndName} already exists at ${ndLocations}.`);
+      creatend.stderr.on('data', data => {
+        console.error(`NameDrive named ${this.nd} already exists at ${ndLocations}.`);
+      });
+    } else {
+      console.error(`NameDrive named ${this.nd} already exists at ${ndLocations}.`);
     }
-  } // End create()
+  }; // end create()
 
   remove() {
-    let backupLocation = "/root/DDNS/backups";
-    let ndBackupLocation = "/root/DDNS/backups/nd";
-    let ndLocation = `/root/DDrive/${this.ndName}`;
-    
-    if (checkDirectory(ndLocation) === true) {
-      let tarName = ndBackupLocation + "tar.gz";
-      const spawn = require('child_process').spawn,
-        rmnd = spawn('rm', ['-f', ndLocation]),
-        backupnd = spawn('tar', ['cf', tarName, ndLocation]);
-      
-      if (fileCheck(ndBackupLocation, `${this.ndName}.tar.gz`) === false) {
-        backupnd.stdout.on('data', () => {
-          console.log(`Before moving, ND was backed up at ${tarName}.`);
+    let backupLocation = process.env.BACKUP_FOLDER;
+    let ndBackupLocation = process.env.ND_BACKUP_FOLDER;
+    let ndLocations = process.env.DDRIVE_ROOT;
+    let ndLocation = `${ndLocations}${this.nd}`;
+    if (checkDirectory (ndLocation) === true) {
+      let tarName = `${this.nd}.tar.gz`;
+      let tarLocation = ndBackupLocation + tarName;
+      const backupNameDrive = spawn('tar', ['cf', 'tarLocation', 'ndLocation']);
+      if (checkDirectory(backupLocation) === false ||
+           checkDirectory(ndBackupLocation) === false) {
+        backupFolderInit();
+      }
+      if (fileCheck(ndBackupLocation, tarName) === false) {
+        backupNameDrive.stdout.on('data', data => {
+          console.log(`=> ND was backed up to ${tarLocation}`);
         });
-
-        backupnd.stderror.on('data', () => {
-          console.error('Before removing, an attempt was made to back up the ND and the following error occurred: ' + data);
+        backupNameDrive.stderr.on('data', data => {
+          console.error('An error occurred while backup up the ND: ' + data);
         });
-
-        rmnd.stdout.on('data', () => {
-          console.log(`${this.ndName} was removed.`);
+        fs.rmdir(ndLocation, () => {
+          console.log(`=> Removed the NameDrive ${this.nd}`);
         });
-     
-        rmnd.stderr.on('data', () => {
-          console.error(`While trying to remove ${this.ndName}, the following error was encountered: ` + data);
-        });
-      }  // end nested IF   
-    }  else {
-      console.error(`Backup already exists for ${this.ndName} or it has already been removed.`);
-    } // end IF/ELSE
-  }; // end remove()
-
-  restore() {
-    let backupLocation = "/root/DDNS/backups/nd/";
-    let ndBackup = `${this.ndName}.tar.gz`;
-    if (fileCheck(backupLocation, ndBackup) === true) {
-      const spawn = require('child_process').spawn;
-        mvtar = spawn('mv', [backupLocation + ndBackup, '/root/DDrive/']);
-        untar = spawn('tar', ['-xvf', `/root/DDrive/${ndBackup}`]);
-        rmtar = spawn('rm', [`/root/DDrive/${ndBackup}`]);
-      
-      mvtar.stdout.on('data', () => {
-        console.log(`${this.ndName} backup file moved to default dDrive.`);
-      });
-
-      mvtar.stderr.on('data', () => {
-        console.error(`While moving the backup file for ${this.ndName}, the following error was encountered: ` + data);
-      });
-
-      untar.stdout.on('data', () => {
-        console.log(`${this.ndName} backup has been restored!`);
-      });
-
-      untar.stderr.on('data', () => {
-        console.error(`While attempting to untar the backup, the following error was encountered: ` + data);
-      });
-
-      rmtar.stdout.on('data', () => {
-        console.log("ND restoration process has completed successfully!");
-      });
-
-      rmtar.stderr.on('data', () => {
-        console.error('While attempting to remove the backup file, the following error was encountered: ' + data);
-      });
-    }  else {
-      console.error(`A backup for ${this.ndName} does not exist`);
+      }
+    } else {
+      console.error(`Backup already exists for ${this.nd} or it was already removed.`);
     }
-  }; // end restore()
+  } // end remove()
+  restore() {
+    let ndBackupLocation = process.env.ND_BACKUP_FOLDER;
+    let ndBackup = `${this.nd}.tar.gz`;
+    let untarLocation = `/root/DDrive/${ndBackup}`;
+    if (fileCheck(ndBackupLocation, ndBackup) === true) {
+      const mvtar = spawn('mv', [backupLocation + ndBackup, process.env.DDRIVE_ROOT]);
+      const untar = spawn('tar', ['-xvf', untarLocation]);
+      mvtar.stdout.on('data', data => {
+        console.log(`=>${this.nd} backup file moved to default dDrive.`);
+      });
+      mvtar.stderr.on('data', data => {
+        console.error('While moving the backup, an error was encountered: ' + data);
+      });
+      untar.stdout.on('data', data => {
+        console.log(`=> ${this.nd} has been restored!`);
+      });
+      untar.stderr.on('data', data => {
+        console.error('An error occurred while compressing the backup file: ' + data);
+      });
+      fs.unlink(backupLocation + ndBackup, () => {
+        console.log("=> ND restoration process completed successfully!");
+      });
+    } else {
+      console.error(`A backup for ${this.nd} does NOT exist!`);
+    }
+  };
 }

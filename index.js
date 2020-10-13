@@ -1,27 +1,32 @@
 #!/usr/bin/env node
-const pkg = require('package.json');
+const pkg = require('./package.json');
 const subcommand = require('subcommand');
 const usage = require('./src/usage');
 const debug = require('debug')('ddns');
 
 if (debug.enabled) {
-  debug('dDNS CLI DEBUG mode engaged, enabling quiet mode');
-};
+  debug('dDNS DEBUG mode engaged, enabling quiet mode');
+}
 
-var config = {
-  default: [],
-  root: { 
+require('dotenv').config();
+
+const config = {
+  default: [
+    { name: 'dir', abbr: 'd', help: 'set the directory for creating and accessing NameDrives.'},
+    { name: 'debug', abbr: 'x', help: 'Enable debug mode.' }
+  ],
+  root: {
     options: [
       {
-      name: 'version',
-      boolean: true,
-      default: false,
-      abbr: 'v'
+        name: 'version',
+        boolean: true,
+        default: false,
+        abbr: 'v'
       }
-   ], 
-  command: usage
+    ],
+    command: showUsage
   },
-  none: usage,
+  none: syncShorthand,
   commands: [
     require('./src/commands/init'),
     require('./src/commands/creatend'),
@@ -32,28 +37,39 @@ var config = {
     require('./src/commands/restoredomain'),
     require('./src/commands/addrecord'),
     require('./src/commands/removerecord')
-  ],
+  ], 
   usage: {
-    command: usage,
+    command: showUsage,
     option: {
       name: 'help',
       abbr: 'h'
     }
-  },  
-}; // End CLI Config
-
-if (debug.enabled) {
- debug('ddns', pkg.version);
- debug('node', process.version);
+  }
 };
 
-// Match Args + Run Commands
-let match = subcommand(config);
+if (debug.enabled) {
+  debug('ddns', pkg.version);
+  debug('node', process.version);
+}
+
+// Match Args + Run commands
+var match = subcommand(config);
 match(alias(process.argv.slice(2)));
 
-function alias(argv) {
+function alias (argv) {
   var cmd = argv[0];
-  if(!config.aliases[cmd]) return argv;
+  if (!config.aliases[cmd]) return argv;
   argv[0] = config.aliases[cmd];
   return argv;
+};
+
+function syncShorthand (opts) {
+  if (!opts._.length) return usage();
+  //TODO: Add defaults
+  // All else fails, show usage
+  return usage();
+};
+
+function showUsage () {
+  usage();
 };

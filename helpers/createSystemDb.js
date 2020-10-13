@@ -1,7 +1,7 @@
 const level = require('level');
-const defaultDir = require('../config/defaultDir');
 
-export default function createSystemDb() {
-  var db = level(`${defaultDir}/ddnsdb`);
-  console.log('System database created successfully!');
+export default function createSystemDb () {
+  let dblocation = process.env.SYSTEM_DB_LOCATION;
+  let db = level(dblocation);
+  console.log('System database successfully created!');
 }

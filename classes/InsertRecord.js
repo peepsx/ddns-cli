@@ -1,58 +1,67 @@
 const dwebtrie = require('dwebtrie');
-// TODO: write DWEB_KEY_REGEX
-const DWEB_KEY_REGEX = / /;
+
+const DWEB_KEY_REGEX = /^[0-9a-f]{64}?$/i;
 
 export default class InsertRecord {
-  constructor (nd, domain, recordName, ttl, type, rclass, rdata) {
+  constructor (nd, domain, record, ttl, rtype, rclass, rdata) {
     this.nd = nd;
     this.domain = domain;
-    this.recordName = recordName;
+    this.record = record;
     this.ttl = ttl;
-    this.type = type;
+    this.rtype = rtype;
     this.rclass = rclass;
     this.rdata = rdata;
-  };
-  
+  }
+
   add() {
-    // create distributed dWeb database, if it doesn't exist
-    const db = dwebtrie(`/root/DDrive/${this.nd}/${this.domain}.db`, {valueEncoding: 'json'});
+    let dDriveRoot = process.env.DDRIVE_ROOT;
+    let domainDb = `${dDriveRoot}${this.nd}/${this.domain}.db`;
+    // create db if it already doesn't exist
+    const db = dwebtrie(domainDb, {valueEncoding: 'json'});
     // add record
-    db.put(`/${this.recordName}/`, `${this.recordName}`, () => {
-      console.log(`Added ${this.recordName} record to the ${this.domain} DB.`);
+    let recordKey = `/${this.record}/`;
+    db.put(recordKey, this.record, () => {
+      console.log(`Added ${this.record} record to the ${this.domain} DB.`);
     });
-    // add ttl
-    db.put(`/${this.recordName}/ttl`, `${this.ttl}`, () => {
-      console.log(`Added TTL of ${this.ttl} for ${this.recordName}.`);
+
+    // add ttl 
+    let ttlKey = `/${this.record}/ttl`;
+    db.put(ttlKey, this.ttl, () => {
+      console.log(`Added ${this.ttl} TTL for ${this.record}`);
     });
-    // add type
-    if ( this.type === "D" || 
-         this.type === "CNAME" || 
+
+    let typeKey = `/${this.record}/type`;
+    if (this.type === "D" ||
+         this.type === "CNAME" ||
          this.type === "MINFO" || 
-         this.type === "DMAIL" || 
+         this.type === "DMAIL" ||
          this.type === "ND" || 
-         this.type === "SRV" || 
+         this.type === "SRV" ||
          this.type === "TXT") {
-      db.put(`/${this.recordName}/type`, `${this.type}`, () => {
-        console.log(`Added Type of ${this.type} for ${this.recordName}.`);
+      db.put(typeKey, this.rtype, () => {
+        console.log(`Added type ${this.rtype} for ${this.record}`);
       });
     } else {
-      console.error("Record type is invalid. Valid record types include D, CNAME, MINFO, DMAIL, ND, SRV and TXT");
-    };
-    // add class
-    if ( this.rclass === "DW" || this.rclass  === "DM") {
-      db.put(`/${this.recordName}/class`, `${this.rclass}`, () => {
-        console.log(`Added Class of ${this.rclass} for ${this.recordName}.`);
-      });
-    } else {
-      console.error('Class type is invalid. Valid Class types include DW and DM');
+        console.error("Record type is invalid. Valid record types include D, CNAME, MINFO, DMAIL, ND, SRV and TXT");
     }
-    // add rdata
-    if (DWEB_KEY_REGEX.test(this.rdata)) {
-      db.put(`/${this.recordName}/rdata`, `${this.rdata}`, () => {
-        console.log(`Added RDATA ${this.rdata} for ${this.recordName}.`);
+
+    let rclassKey = `/${this.record}/class`;
+    if (this.rclass === "DW" ||
+         this.rclass === "DM") {
+      db.put(rclassKey, this.rclass, () => {
+        console.log(`Added class of ${this.rclass} for ${this.record}`);
       });
-    }  else {
-      console.error("dWeb key is not valid.");
-    }    
-  }; // end add function
+    } else {
+      console.error("Class type is invalid]. Valid class types include DW and DM.");
+    }
+
+    let rdataKey = `/${this.record}/rdata`;
+    if (DWEB_KEY_REGEX.test(this.rdata)) {
+      db.put(rdataKey, this.rdata, () => {
+        console.log(`Added RDATA ${this.rdata} for ${this.record}.`);
+      });
+    } else {
+        console.error('dWeb key is not valid.');
+    }
+  }; // end add()
 }

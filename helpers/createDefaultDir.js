@@ -1,12 +1,8 @@
-var spawn = require('child_process').spawn,
-  mkdir = spawn('mkdir', ['~/DDNS']);
+const createDirectory = require('./createDirectory');
 
-export default function createDefaultDir () {
-  mkdir.stdout.on('data', () => {
-    console.log('DDNS default directory created');
-  });
-
-  mkdir.stderr.on('data', () => {
-    console.error('DDNS default directory creation failed: ' + data);
+export default function createDefaultDir() {
+  const dirType = "Default directory";
+  createDirectory(process.env.DEFAULT_DIR, dirType, () => {
+    console.log(`${dirType} was created at ${defaultDir}`);
   });
 }

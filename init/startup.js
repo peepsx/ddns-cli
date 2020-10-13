@@ -1,50 +1,49 @@
 const fs = require('fs');
 const level = require('level');
 const chalk = require('chalk');
-const setDb = require('../init/setDb');
+const spawn = require('child_process').spawn;
+const setDb = require('./setDb');
 const checkDirectory = require('../helpers/checkDirectory');
 const fileCheck = require('../helpers/fileCheck');
 const createSystemDb = require('../helpers/createSystemDb');
 const createDefaultDir = require('../helpers/createDefaultDir');
 const backupFolderInit = require('../helpers/backupFolderInit');
-const defaultDir = require('./config/defaultDir');
-const spawn = require('child_process').spawn;
-const log = console.log();
-const issue = console.error();
+const log = console.log(), issue = console.error();
+const startDDrive = spawn('ddrive', ['start']);
 
-export default function startup() {
-  const startddrive = spawn('ddrive', ['start']);
-  startddrive.stdout.on('data', () => {
-    log(chalk.rgb(71,116,182).bold('Starting The dDNS Engines'));
-    log(" => dDrive Daemon Started");
+export default function startup () {
+  log(chalk.rgb(71,116,182).bold('Starting The dDNS Engines.'));
+  startDDrive.stdout.on('data', data => {
+    log("=> dDrive Daemon Started");
+  });
+
+  startDDrive.stderr.on('data', data => {
+    issue('The following error occurred while attempting to start dDrive Daemon: ' + data);
   });
   
-  startddrive.stderr.on('data', () => {
-    log(chalk.rgb(71,116,182).bold('Starting The dDNS Engines'));
-    issue('The following issue occurred while attempting to start dDrive Daemon' + data);
-  });
-
-  if (checkDirectory(defaultDir) === true) {
+  // create default DDNS Directory
+  if (checkDirectory(process.env.DEFAULT_DIR) === true) {
     createDefaultDir();
-    log(" => Created default DDNS directory at ~/DDNS");
-  };
-  
-  if (fileCheck("/root/DDNS/", "ddnsdb") === true) {
-    log(" => Creating SystemDB locally.");
+    log("=> Created default DDNS directory at ~/DDNS");
+  }
+
+  if (fileCheck(process.env.DDRIVE_ROOT, "ddnsdb") === true) {
+    log("=> Creating System DB locally.");
     createSystemDb();
-    log(" => Initializing DB");
+    log("=> Initializing DB");
     setDb();
-  };
-  
-  if (checkDirectory("/root/DDNS/backup/") === true && checkDirectory("/root/DDNS/backups/nd/") === true) {
+  }
+
+  // Create backup directories
+  if (checkDirectory(process.env.BACKUP_FOLDER) === false &&
+       checkDirectory(process.env.ND_BACKUP_FOLDER) === false) {
     backupFolderInit();
-    log(" => Creating backup folders at ~/DDNS/backups");
-  };
-  
-  // Set init status to true in the SystemDB
-  let db = level('/root/DDNS/ddnsdb');
+  }
+
+  // Set init status to "true" in systemDB
+  let db = level(process.env.SYSTEM_DB_LOCATION);
   db.put('init', 'true', (err, value) => {
-    if (err) return issue("Initialization has already been set in SystemDB.");
-    log("=> Init set to true in DB and dDNS CLI initialization has been finalized.");
+    if (err) return log("Init already set to true in DB");
+    log("=> dDNS CLI has been initialized!");
   });
 }
